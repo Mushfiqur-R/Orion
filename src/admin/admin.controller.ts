@@ -1,31 +1,43 @@
 import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CreateUserDto } from 'src/Dto/User.dto';
 
+@ApiTags('Admin')
 @Controller('admin')
 export class AdminController {
     constructor(private readonly adminService: AdminService){}
 
     @Get()
-  getAdminHello(): string {
+    @ApiOperation({ summary: 'Test admin API' })
+    getAdminHello(): string {
     return this.adminService.getHello();
-  }
-   @Post('create-user')
-  createUser(@Body() data: { name: string; email: string; password?: string }) {
+    }
+
+    @Post('create-user')
+    @ApiOperation({ summary: 'Create a new user' })
+    @ApiResponse({ status: 201, description: 'User created successfully' })
+    createUser(@Body() data:CreateUserDto) {
     return this.adminService.createUser(data);
-  }
+    }
 
-  @Get('users')
-  getUsers() {
+    @Get('users')
+    @ApiOperation({ summary: 'Get all users' })
+    getUsers() {
     return this.adminService.getUsers();
-  }
+    }
 
-  @Delete('delete-user')
-  deleteUser(@Query('email') email: string) {
+    @Delete('delete-user')
+    @ApiOperation({ summary: 'Delete user by email' })
+    @ApiQuery({ name: 'email', example: 'test@example.com' })
+    deleteUser(@Query('email') email: string) {
     return this.adminService.deleteUserByEmail(email);
-  }
+   }
 
-  @Get('user')
-  getUser(@Query('email') email: string) {
+    @Get('user')
+    @ApiOperation({ summary: 'Get single user by email' })
+    @ApiQuery({ name: 'email', example: 'test@example.com' })
+    getUser(@Query('email') email: string) {
     return this.adminService.getUserByEmail(email);
   }
 
