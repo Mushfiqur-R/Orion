@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from 'src/Dto/User.dto';
 import { CreateCategorydto } from 'src/Dto/Category.dto';
 import { Category } from 'src/schemas/category.schema';
-import { CreateProductDto } from 'src/Dto/Product.dto';
+import { CreateProductDto, UpdateProductDto } from 'src/Dto/Product.dto';
 import { Product } from 'src/schemas/product.schema';
 
 @ApiTags('Admin')
@@ -46,20 +46,28 @@ export class AdminController {
   }
 
   @Post("createcatagory")
+   @ApiOperation({ summary: 'create catagory' })
   async createCatagory(@Body() data:CreateCategorydto):Promise<Category>{
     return this.adminService.createCategory(data);
   }
   
   @Post('createproduct')
+  @ApiOperation({ summary: 'create product' })
   async create(@Body() data: CreateProductDto): Promise<Product> {
     return this.adminService.createProduct(data);
   }
 
   @Get('getallproducts')
+  @ApiOperation({summary:'get all products'})
   async getAll(): Promise<Product[]> {
     return this.adminService.findAllProducts();
   }
-  
+
+  @Patch('updateproduct/:id')
+  @ApiOperation({summary:'update product info'})
+  async updateProduct(@Param('id') id: string,@Body() data: UpdateProductDto){
+    return this.adminService.updateProduct(id, data);
+  }
 
 
 }

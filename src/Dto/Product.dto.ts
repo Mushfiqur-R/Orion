@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsNumber, IsString, IsMongoId } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'iPhone 15', description: 'product name' })
@@ -21,3 +21,5 @@ export class CreateProductDto {
   @IsMongoId({ message: 'Category must be a valid MongoDB ObjectId' }) 
   category: string; 
 }
+
+export class UpdateProductDto extends PartialType(CreateProductDto){}

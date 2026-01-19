@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateCategorydto } from 'src/Dto/Category.dto';
-import { CreateProductDto } from 'src/Dto/Product.dto';
+import { CreateProductDto, UpdateProductDto } from 'src/Dto/Product.dto';
 import { Category, CategoryDocument } from 'src/schemas/category.schema';
 import { Product, ProductDocument } from 'src/schemas/product.schema';
 import { User, UserDocument } from 'src/schemas/user.schema';
@@ -49,5 +49,15 @@ export class AdminService {
 
   async findAllProducts(): Promise<Product[]> {
     return this.productModel.find().populate('category').exec();
+  }
+
+  async updateProduct(id: string, data: UpdateProductDto): Promise<Product> {
+    const updatedProduct = await this.productModel.findByIdAndUpdate(
+      id,data,{ new: true } 
+    ).exec();
+    if (!updatedProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    } 
+    return updatedProduct;
   }
 }
