@@ -2,10 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { apiReference } from '@scalar/nestjs-api-reference';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   app.useGlobalPipes(
   new ValidationPipe({
     whitelist: true,
@@ -21,6 +22,15 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
+ 
+  app.use(
+    '/scalar', 
+    apiReference({
+      spec: {
+        content: document, 
+      },
+    }as any),
+  );
 
   await app.listen(process.env.PORT ?? 3000);
 }
