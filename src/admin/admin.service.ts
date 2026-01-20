@@ -1,5 +1,7 @@
+import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import Redis from 'ioredis';
 import { Model } from 'mongoose';
 import { CreateCategorydto } from 'src/Dto/Category.dto';
 import { CreateProductDto, UpdateProductDto } from 'src/Dto/Product.dto';
@@ -13,7 +15,8 @@ export class AdminService {
  constructor(
  @InjectModel(User.name) private userModel: Model<UserDocument>,
  @InjectModel(Category.name) private categoryModel:Model<CategoryDocument>,
- @InjectModel(Product.name) private productModel:Model<ProductDocument>) {}
+ @InjectModel(Product.name) private productModel:Model<ProductDocument>,
+ @InjectRedis()private readonly redis:Redis) {}
      getHello(): string {
     return 'Hello Admin!';
   }
@@ -44,11 +47,21 @@ export class AdminService {
 
   async createProduct(data: CreateProductDto): Promise<Product> {
     const newProduct = new this.productModel(data);
-    return newProduct.save();
+    const savedProduct= await newProduct.save();
+     await this.redis.del("all_products");
+    return savedProduct;
   }
 
   async findAllProducts(): Promise<Product[]> {
-    return this.productModel.find().populate('category').exec();
+    const cashedData= await this.redis.get('all_products');
+    if(cashedData){
+      return JSON.parse(cashedData);
+    }
+    const products= await this.productModel.find().populate('category').exec();
+    if(products.length>0){
+      await this.redis.set('all_products',JSON.stringify(products),'EX',300);
+    }
+    return products;
   }
 
   async updateProduct(id: string, data: UpdateProductDto): Promise<Product> {
@@ -58,6 +71,7 @@ export class AdminService {
     if (!updatedProduct) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     } 
+    await this.redis.del("all_products");
     return updatedProduct;
   }
 }

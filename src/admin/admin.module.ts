@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../schemas/user.schema'; // <-- correct relative path
 import { Category, CategorySchema } from 'src/schemas/category.schema';
 import { Product, ProductSchema } from 'src/schemas/product.schema';
+import { RedisModule } from '@nestjs-modules/ioredis';
 // relative path, admin folder থেকে
 
 @Module({
@@ -13,7 +14,8 @@ import { Product, ProductSchema } from 'src/schemas/product.schema';
     { name: User.name, schema: UserSchema },
     {name:Category.name,schema:CategorySchema},
     {name:Product.name,schema:ProductSchema}
-    ],), 
+    ],),
+   
   ],
   controllers: [AdminController],
   providers: [AdminService],
