@@ -7,6 +7,8 @@ import { AdminModule } from './admin/admin.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { single } from 'rxjs';
+import { Throttle, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 
 @Module({
@@ -16,9 +18,18 @@ import { single } from 'rxjs';
     RedisModule.forRoot({
       type:'single',
       url: 'redis://localhost:6379',
-    })
+    }),
+    ThrottlerModule.forRoot([{
+      ttl:60000,
+      limit:2
+    }])
   ],
   controllers: [AppController,],
-  providers: [AppService, ],
+  providers: [AppService,
+    {
+      provide: APP_GUARD,
+      useClass:ThrottlerGuard
+    }
+   ],
 })
 export class AppModule {}
