@@ -9,6 +9,8 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 import { single } from 'rxjs';
 import { Throttle, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AuthModule } from './auth/auth.module';
 
 
 @Module({
@@ -22,7 +24,11 @@ import { APP_GUARD } from '@nestjs/core';
     ThrottlerModule.forRoot([{
       ttl:60000,
       limit:2
-    }])
+    }]),
+
+    ScheduleModule.forRoot(),
+
+    AuthModule,
   ],
   controllers: [AppController,],
   providers: [AppService,

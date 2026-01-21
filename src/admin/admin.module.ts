@@ -6,6 +6,7 @@ import { User, UserSchema } from '../schemas/user.schema'; // <-- correct relati
 import { Category, CategorySchema } from 'src/schemas/category.schema';
 import { Product, ProductSchema } from 'src/schemas/product.schema';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { JwtAuthGuard } from 'src/guards/jwtGuard';
 // relative path, admin folder থেকে
 
 @Module({
@@ -18,6 +19,6 @@ import { RedisModule } from '@nestjs-modules/ioredis';
    
   ],
   controllers: [AdminController],
-  providers: [AdminService],
+  providers: [AdminService,JwtAuthGuard],
 })
 export class AdminModule {}

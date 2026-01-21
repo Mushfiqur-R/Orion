@@ -5,10 +5,11 @@ import Redis from 'ioredis';
 import { Model } from 'mongoose';
 import { CreateCategorydto } from 'src/Dto/Category.dto';
 import { CreateProductDto, UpdateProductDto } from 'src/Dto/Product.dto';
+import { CreateUserDto } from 'src/Dto/User.dto';
 import { Category, CategoryDocument } from 'src/schemas/category.schema';
 import { Product, ProductDocument } from 'src/schemas/product.schema';
-import { User, UserDocument } from 'src/schemas/user.schema';
-
+import { User, UserDocument, UserRole } from 'src/schemas/user.schema';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
@@ -20,16 +21,51 @@ export class AdminService {
      getHello(): string {
     return 'Hello Admin!';
   }
-   async createUser(data: { name: string; email: string; password?: string }): Promise<User> {
-    const createdUser = new this.userModel(data);
-    return createdUser.save();
-  }
+  //  async createUser(data: { name: string; email: string; password?: string }): Promise<User> {
+  //   const createdUser =  new this.userModel(data);
+  //   const saveuser=await createdUser.save();
+  //   await this.redis.del("all_users");
+  //   return saveuser;
+  
+  // }
+  async createUser(data: CreateUserDto): Promise<User> {
+    const { password, ...rest } = data; 
+
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+  
+    const createdUser = new this.userModel({
+      ...rest, 
+      password: hashedPassword, 
+      role:UserRole.ADMIN
+    });
+
+    const saveuser = await createdUser.save();
+    await this.redis.del("all_users");
+    
+    return saveuser;
+}
 
  
-  async getUsers(): Promise<User[]> {
-    return this.userModel.find().exec();
+async getUsers(): Promise<User[]> {
+    const cachedUsers = await this.redis.get('all_users');
+    if (cachedUsers) {
+      return JSON.parse(cachedUsers); 
+    }
+    const users = await this.userModel.find().exec();
+    if (users.length > 0) {
+      await this.redis.set('all_users', JSON.stringify(users), 'EX', 20);
+    }
+    return users;
   }
-
+async refreshUserCache() {
+    console.log('🔄 Cron Job: Updating User Cache from DB...');
+    const users = await this.userModel.find().exec();
+    if (users.length > 0) { 
+      await this.redis.set('all_users', JSON.stringify(users), 'EX', 20);
+    }
+  }
   
   async deleteUserByEmail(email: string): Promise<any> {
     return this.userModel.deleteOne({ email }).exec();
