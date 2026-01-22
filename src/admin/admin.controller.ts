@@ -1,6 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from 'src/Dto/User.dto';
 import { CreateCategorydto } from 'src/Dto/Category.dto';
 import { Category } from 'src/schemas/category.schema';
@@ -13,9 +13,16 @@ import { JwtAuthGuard } from 'src/guards/jwtGuard';
 import { RolesGuard } from 'src/guards/Roles.guard';
 import { Roles } from 'src/guards/roles.decorator';
 import { UserRole } from 'src/schemas/user.schema';
+import { CreateOrganizationDto } from 'src/Dto/Organization.dto';
+import { OrgGuard } from 'src/guards/org.guard';
 
 @ApiBearerAuth()
 @ApiTags('Admin')
+@ApiHeader({
+  name: 'x-tenant-id',
+  description: 'Organization ID (e.g. 65a...)',
+  required: true,
+})
 @Controller('admin')
 export class AdminController {
     constructor(private readonly adminService: AdminService){}
@@ -78,21 +85,24 @@ export class AdminController {
     return this.adminService.createCategory(data);
   }
   
-  @Throttle({default:{ttl:60000,limit:1}})
+  @Throttle({default:{ttl:60000,limit:3}})
   @Post('createproduct')
-  @UseGuards(JwtAuthGuard,RolesGuard)
+  @UseGuards(JwtAuthGuard,RolesGuard,OrgGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'create product' })
-  async create(@Body() data: CreateProductDto): Promise<Product> {
-    return this.adminService.createProduct(data);
+  async create(@Body() data: CreateProductDto , @Req() req): Promise<Product> {
+     const orgId = req['activeOrgId'];
+    return this.adminService.createProduct(data,orgId);
   }
   
   @SkipThrottle()
   @Get('getallproducts')
+    @UseGuards(JwtAuthGuard,RolesGuard,OrgGuard)
   @ApiOperation({summary:'get all products'})
-  async getAll(): Promise<Product[]> {  
+  async getAll(@Req() req): Promise<Product[]> { 
+    const orgId=req['activeOrgId']; 
     console.log("Request executed");
-    return this.adminService.findAllProducts();
+    return this.adminService.findAllProducts(orgId);
   }
    
   @Throttle({default:{ttl:60000,limit:1}})
@@ -103,4 +113,12 @@ export class AdminController {
   async updateProduct(@Param('id') id: string,@Body() data: UpdateProductDto){
     return this.adminService.updateProduct(id, data);
   }
+
+   @Post('create-org')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN) 
+    @ApiOperation({ summary: 'Create new Organization (Tenant)' })
+    createOrg(@Body() data: CreateOrganizationDto) {
+        return this.adminService.createOrganization(data);
+    }
 }

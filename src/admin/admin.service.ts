@@ -10,6 +10,8 @@ import { Category, CategoryDocument } from 'src/schemas/category.schema';
 import { Product, ProductDocument } from 'src/schemas/product.schema';
 import { User, UserDocument, UserRole } from 'src/schemas/user.schema';
 import * as bcrypt from 'bcrypt';
+import { Organization, OrganizationDocument } from 'src/schemas/organization.schema';
+import { CreateOrganizationDto } from 'src/Dto/Organization.dto';
 
 @Injectable()
 export class AdminService {
@@ -17,6 +19,7 @@ export class AdminService {
  @InjectModel(User.name) private userModel: Model<UserDocument>,
  @InjectModel(Category.name) private categoryModel:Model<CategoryDocument>,
  @InjectModel(Product.name) private productModel:Model<ProductDocument>,
+ @InjectModel(Organization.name) private orgModel: Model<OrganizationDocument>,
  @InjectRedis()private readonly redis:Redis) {}
      getHello(): string {
     return 'Hello Admin!';
@@ -29,24 +32,21 @@ export class AdminService {
   
   // }
   async createUser(data: CreateUserDto): Promise<User> {
-    const { password, ...rest } = data; 
-
-    
+    const { password, orgIds, ...rest } = data;
     const hashedPassword = await bcrypt.hash(password, 10);
-
-  
     const createdUser = new this.userModel({
-      ...rest, 
+      ...rest,                 // name, email, role
       password: hashedPassword, 
-      role:UserRole.ADMIN
-    });
 
+      orgIds: orgIds || [], 
+      
+      role: data.role || UserRole.CUSTOMER 
+    });
     const saveuser = await createdUser.save();
     await this.redis.del("all_users");
     
     return saveuser;
-}
-
+  }
  
 async getUsers(): Promise<User[]> {
     const cachedUsers = await this.redis.get('all_users');
@@ -81,21 +81,22 @@ async refreshUserCache() {
     return NewCategory.save();
   }
 
-  async createProduct(data: CreateProductDto): Promise<Product> {
-    const newProduct = new this.productModel(data);
+  async createProduct(data: CreateProductDto,orgId:string): Promise<Product> {
+    const newProduct = new this.productModel({...data,orgId:orgId});
     const savedProduct= await newProduct.save();
-     await this.redis.del("all_products");
+    await this.redis.del(`products:${orgId}`);
     return savedProduct;
+
   }
 
-  async findAllProducts(): Promise<Product[]> {
-    const cashedData= await this.redis.get('all_products');
+  async findAllProducts(orgId:string): Promise<Product[]> {
+    const cashedData= await this.redis.get(`product:${orgId}`);
     if(cashedData){
       return JSON.parse(cashedData);
     }
-    const products= await this.productModel.find().populate('category').exec();
+    const products= await this.productModel.find({orgId:orgId}).populate('category').exec();
     if(products.length>0){
-      await this.redis.set('all_products',JSON.stringify(products),'EX',300);
+      await this.redis.set(`product:${orgId}`,JSON.stringify(products),'EX',300);
     }
     return products;
   }
@@ -109,5 +110,10 @@ async refreshUserCache() {
     } 
     await this.redis.del("all_products");
     return updatedProduct;
+  }
+
+    async createOrganization(data: CreateOrganizationDto): Promise<Organization> {
+    const newOrg = new this.orgModel(data);
+    return newOrg.save();
   }
 }

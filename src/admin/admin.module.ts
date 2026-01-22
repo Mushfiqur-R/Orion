@@ -7,6 +7,7 @@ import { Category, CategorySchema } from 'src/schemas/category.schema';
 import { Product, ProductSchema } from 'src/schemas/product.schema';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { JwtAuthGuard } from 'src/guards/jwtGuard';
+import { Organization, OrganizationSchema } from 'src/schemas/organization.schema';
 // relative path, admin folder থেকে
 
 @Module({
@@ -14,7 +15,8 @@ import { JwtAuthGuard } from 'src/guards/jwtGuard';
     MongooseModule.forFeature([
     { name: User.name, schema: UserSchema },
     {name:Category.name,schema:CategorySchema},
-    {name:Product.name,schema:ProductSchema}
+    {name:Product.name,schema:ProductSchema},
+    {name:Organization.name,schema:OrganizationSchema}
     ],),
    
   ],

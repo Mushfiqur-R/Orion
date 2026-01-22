@@ -30,28 +30,41 @@ export class AuthService {
     return user;
   }
 
-  async login(loginDto: LoginDto): Promise<{ token: string }> {
+
+async login(loginDto: LoginDto): Promise<{ token: string; user: any; organizations: any[] }> {
     const { email, password } = loginDto;
- 
-    const user = await this.userModel.findOne({ email });
+
+
+    const user = await this.userModel.findOne({ email })
+        .populate('orgIds', 'name slug address') 
+        .exec();
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+        throw new UnauthorizedException('Invalid email or password');
     }
+
     const isPasswordMatched = await bcrypt.compare(password, user.password);
     if (!isPasswordMatched) {
-      throw new UnauthorizedException('Invalid email or password');
+        throw new UnauthorizedException('Invalid email or password');
     }
 
     const payload = { 
         sub: user._id, 
         email: user.email, 
-        role:user.role
-        // orgId: user.orgId (ভবিষ্যতে মাল্টি-টেন্যান্সির জন্য এখানে দেবেন) 
+        role: user.role,
+        allowedOrgs: user.orgIds.map((org: any) => org._id) 
     };
     
     const token = this.jwtService.sign(payload);
 
-    return { token };
-  }
+    return { 
+        token,
+        user: {
+            name: user.name,
+            email: user.email,
+            role: user.role
+        },
+        organizations: user.orgIds 
+    };
+}
 }
