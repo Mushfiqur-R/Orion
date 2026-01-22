@@ -1,43 +1,100 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument, UserRole } from '../schemas/user.schema';
+import { Model, Types } from 'mongoose';
+import { User, UserDocument } from '../schemas/user.schema';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from 'src/Dto/User.dto';
 import { LoginDto } from 'src/Dto/Login.dto';
-
+import { OrgRole, UserOrgMap, UserOrgMapDocument } from 'src/schemas/UserOrg.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(UserOrgMap.name) private userOrgMapModel: Model<UserOrgMapDocument>,
     private jwtService: JwtService,
   ) {}
 
-  async signUp(createAuthDto: CreateUserDto): Promise<User> {
-    const { name, email, password } = createAuthDto;
+//   async signUp(createAuthDto: CreateUserDto): Promise<any> {
+//     const { name, email, password, orgId, role } = createAuthDto;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+//     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await this.userModel.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: UserRole.CUSTOMER
-    });
+//     let user;
+//     try{
+//         user = await this.userModel.create({
+//             name,
+//             email,
+//             password: hashedPassword,
+//         });}
+//      catch (error) {
+//         if (error.code === 11000) {
+//             throw new BadRequestException('Email already exists');
+//         }
+//         throw error;
+//     }
+    
+//     if(orgId){
+//     await this.userOrgMapModel.create({
+//         userId: user._id,
+//         orgId: orgId, 
+//         role: role || OrgRole.CUSTOMER 
+//     });
+// }
 
-    return user;
-  }
+//     return { message: 'Signup successful', userId: user._id,useremail:user.email};
+//   }
 
+async signUp(createAuthDto: CreateUserDto): Promise<any> {
+    const { name, email, password, orgId, role } = createAuthDto;
 
-async login(loginDto: LoginDto): Promise<{ token: string; user: any; organizations: any[] }> {
+    
+    let user = await this.userModel.findOne({ email: email });
+
+    if (!user) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+       
+        user = await this.userModel.create({
+            name,
+            email,
+            password: hashedPassword,
+        });
+    } 
+    
+
+    if (orgId) {
+        
+        const existingMember = await this.userOrgMapModel.findOne({
+            userId: user._id,
+            orgId: orgId
+        });
+
+        if (existingMember) {
+            
+            throw new BadRequestException('User is already a member of this organization');
+        }
+
+    
+        await this.userOrgMapModel.create({
+            userId: user._id,
+            orgId: new Types.ObjectId(orgId), 
+            role: role || OrgRole.CUSTOMER 
+        });
+    }
+
+    return { 
+        message: user.isNew ? 'User created and added' : 'Existing user added to organization', 
+        userId: user._id, 
+        email: user.email 
+    };
+}
+
+  async login(loginDto: LoginDto): Promise<{ token: string; user: any; organizations: any[] }> {
     const { email, password } = loginDto;
 
-
-    const user = await this.userModel.findOne({ email })
-        .populate('orgIds', 'name slug address') 
-        .exec();
+    const user = await this.userModel.findOne({ email });
 
     if (!user) {
         throw new UnauthorizedException('Invalid email or password');
@@ -48,11 +105,24 @@ async login(loginDto: LoginDto): Promise<{ token: string; user: any; organizatio
         throw new UnauthorizedException('Invalid email or password');
     }
 
+    const memberships = await this.userOrgMapModel.find({ userId: user._id })
+        .populate('orgId', 'name')
+        .exec();
+
+
+    const organizations = memberships.map((m: any) => ({
+        _id: m.orgId._id,
+        name: m.orgId.name,
+        slug: m.orgId.slug,
+        address: m.orgId.address,
+        role: m.role 
+    }));
+
+
     const payload = { 
         sub: user._id, 
         email: user.email, 
-        role: user.role,
-        allowedOrgs: user.orgIds.map((org: any) => org._id) 
+        allowedOrgs: organizations.map(o => o._id) 
     };
     
     const token = this.jwtService.sign(payload);
@@ -62,9 +132,8 @@ async login(loginDto: LoginDto): Promise<{ token: string; user: any; organizatio
         user: {
             name: user.name,
             email: user.email,
-            role: user.role
         },
-        organizations: user.orgIds 
+        organizations: organizations 
     };
-}
+  }
 }

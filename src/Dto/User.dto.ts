@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
-import { UserRole } from 'src/schemas/user.schema';
+import { IsEmail, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { OrgRole } from 'src/schemas/UserOrg.schema';
+
 
 export class CreateUserDto {
   @ApiProperty({
@@ -20,35 +21,35 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({
-    example: 'password123',
+    example: 'password',
     required: true,
-    description: 'User password (required for signup)',
+    description: 'User password',
   })
   @IsString()
   @IsNotEmpty() 
   @MinLength(6)
   password: string; 
   
-
   @ApiProperty({
-    example: 'customer',
-    description: 'User role (admin/customer)',
+    example: OrgRole.CUSTOMER, 
+    description: 'Role inside the organization (admin/manager/customer)',
     required: false, 
-    enum: UserRole,
+    enum: OrgRole,
+    enumName: 'OrgRole',      // 👈 ২. এই লাইনটি খুব গুরুত্বপূর্ণ (Dropdown দেখানোর জন্য)
   })
   @IsOptional()
-  @IsEnum(UserRole, { message: 'Role must be either admin or customer' })
+  @IsEnum(OrgRole, { message: 'Invalid role for organization' })
   role: string; 
 
 
+
   @ApiProperty({
-    type: [String],
-    example: ['65a1b2c3d4e5f67890123456'], 
-    description: 'List of Organization IDs this user belongs to',
-    required: false
+    type: String,
+    example: '65a1b2c3d4e5f67890123456', 
+    description: 'Organization ID to add this user to',
+    required: true
   })
-  @IsOptional() 
-  @IsArray()
-  @IsMongoId({ each: true, message: 'Each orgId must be a valid MongoDB ObjectId' })
-  orgIds?: string[];
+  @IsOptional()
+  @IsMongoId({ message: 'orgId must be a valid MongoDB ObjectId' })
+  orgId?: string;
 }

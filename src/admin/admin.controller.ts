@@ -12,9 +12,9 @@ import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from 'src/guards/jwtGuard';
 import { RolesGuard } from 'src/guards/Roles.guard';
 import { Roles } from 'src/guards/roles.decorator';
-import { UserRole } from 'src/schemas/user.schema';
 import { CreateOrganizationDto } from 'src/Dto/Organization.dto';
 import { OrgGuard } from 'src/guards/org.guard';
+import { OrgRole } from 'src/schemas/UserOrg.schema';
 
 @ApiBearerAuth()
 @ApiTags('Admin')
@@ -35,22 +35,23 @@ export class AdminController {
    
     @Throttle({default:{ttl:60000,limit:2}})
     @Post('create-user')
-    @UseGuards(JwtAuthGuard,RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard,OrgGuard, RolesGuard) 
+    @Roles(OrgRole.OWNER,OrgRole.ADMIN)
     @ApiOperation({ summary: 'Create a new user' })
     @ApiResponse({ status: 201, description: 'User created successfully' })
-    createUser(@Body() data:CreateUserDto) {
-    return this.adminService.createUser(data);
-    }
+    createUser(@Body() data: CreateUserDto, @Req() req) {
+    const orgId = req['activeOrgId']; 
+    return this.adminService.createUser(data, orgId);
+}
     
     @Throttle({default:{ttl:60000,limit:3}})
-   
     @Get('users')
-    @UseGuards(JwtAuthGuard,RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard,OrgGuard,RolesGuard)
+    @Roles(OrgRole.ADMIN,OrgRole.OWNER)
     @ApiOperation({ summary: 'Get all users' })
-    getUsers() {
-    return this.adminService.getUsers();
+    getUsers(@Req()req) {
+    const orgId = req['activeOrgId'];
+    return this.adminService.getUsers(orgId);
     }
 
     @SkipThrottle()
@@ -60,13 +61,13 @@ export class AdminController {
     }
 
     @Delete('delete-user')
-    @UseGuards(JwtAuthGuard,RolesGuard)
-    @Roles(UserRole.ADMIN)
-    @ApiOperation({ summary: 'Delete user by email' })
-    @ApiQuery({ name: 'email', example: 'test@example.com' })
-    deleteUser(@Query('email') email: string) {
-    return this.adminService.deleteUserByEmail(email);
-   }
+    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard)
+    @Roles(OrgRole.ADMIN, OrgRole.OWNER)
+    @ApiOperation({ summary: 'Remove user from organization' })
+    deleteUser(@Query('email') email: string, @Req() req) {
+       const orgId = req['activeOrgId'];
+       return this.adminService.removeUserFromOrg(email, orgId);
+    }
 
     @SkipThrottle()
     @Get('user')
@@ -79,46 +80,46 @@ export class AdminController {
   @Throttle({default:{ttl:60000,limit:1}})
   @Post("createcatagory")
   @UseGuards(JwtAuthGuard,RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(OrgRole.ADMIN)
    @ApiOperation({ summary: 'create catagory' })
   async createCatagory(@Body() data:CreateCategorydto):Promise<Category>{
     return this.adminService.createCategory(data);
   }
   
-  @Throttle({default:{ttl:60000,limit:3}})
-  @Post('createproduct')
-  @UseGuards(JwtAuthGuard,RolesGuard,OrgGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'create product' })
-  async create(@Body() data: CreateProductDto , @Req() req): Promise<Product> {
-     const orgId = req['activeOrgId'];
-    return this.adminService.createProduct(data,orgId);
-  }
+@Throttle({default:{ttl:60000,limit:3}})
+    @Post('createproduct')
+    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard)
+    @Roles(OrgRole.ADMIN, OrgRole.OWNER)
+    @ApiOperation({ summary: 'create product' })
+    async create(@Body() data: CreateProductDto , @Req() req): Promise<Product> {
+    const orgId = req['activeOrgId'];
+    return this.adminService.createProduct(data, orgId);
+    }
   
-  @SkipThrottle()
-  @Get('getallproducts')
-    @UseGuards(JwtAuthGuard,RolesGuard,OrgGuard)
-  @ApiOperation({summary:'get all products'})
-  async getAll(@Req() req): Promise<Product[]> { 
-    const orgId=req['activeOrgId']; 
-    console.log("Request executed");
+@SkipThrottle()
+    @Get('getallproducts')
+    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard)
+    @ApiOperation({summary:'get all products from single or multiple orgs'})
+    async getAll(@Req() req): Promise<Product[]> { 
+    const orgId = req['activeOrgId']; 
     return this.adminService.findAllProducts(orgId);
-  }
+    }
    
   @Throttle({default:{ttl:60000,limit:1}})
   @Patch('updateproduct/:id')
    @UseGuards(JwtAuthGuard,RolesGuard)
-   @Roles(UserRole.ADMIN)
+   @Roles(OrgRole.ADMIN)
   @ApiOperation({summary:'update product info'})
   async updateProduct(@Param('id') id: string,@Body() data: UpdateProductDto){
     return this.adminService.updateProduct(id, data);
   }
-
+   
+ 
    @Post('create-org')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN) 
-    @ApiOperation({ summary: 'Create new Organization (Tenant)' })
-    createOrg(@Body() data: CreateOrganizationDto) {
-        return this.adminService.createOrganization(data);
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Create new Organization' })
+    createOrg(@Body() data: CreateOrganizationDto, @Req() req) {
+    const userId = req.user.sub; 
+    return this.adminService.createOrganization(data, userId);
     }
 }

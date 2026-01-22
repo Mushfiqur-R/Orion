@@ -11,6 +11,7 @@ import { Throttle, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
+import { UserOrgMap, UserOrgMapSchema } from './schemas/UserOrg.schema';
 
 
 @Module({
@@ -29,6 +30,7 @@ import { AuthModule } from './auth/auth.module';
     ScheduleModule.forRoot(),
 
     AuthModule,
+
   ],
   controllers: [AppController,],
   providers: [AppService,
