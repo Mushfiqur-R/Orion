@@ -13,7 +13,13 @@ import * as bcrypt from 'bcrypt';
 import { Organization, OrganizationDocument } from 'src/schemas/organization.schema';
 import { CreateOrganizationDto } from 'src/Dto/Organization.dto';
 import { OrgRole, UserOrgMap, UserOrgMapDocument } from 'src/schemas/UserOrg.schema';
+import { RolePermission, RolePermissionDocument } from 'src/schemas/rolepermission.schema';
 
+const DEFAULT_PERMISSIONS = {
+    [OrgRole.OWNER]: ['create_product', 'update_product', 'delete_product', 'view_product', 'create_user', 'delete_user'],
+    [OrgRole.ADMIN]: ['create_product', 'update_product', 'view_product', 'create_user'],
+    [OrgRole.CUSTOMER]: ['view_product']
+};
 @Injectable()
 export class AdminService {
  constructor(
@@ -22,6 +28,7 @@ export class AdminService {
  @InjectModel(Product.name) private productModel:Model<ProductDocument>,
  @InjectModel(Organization.name) private orgModel: Model<OrganizationDocument>,
  @InjectModel(UserOrgMap.name) private userOrgMapModel: Model<UserOrgMapDocument>,
+ @InjectModel(RolePermission.name) private rolePermissionModel: Model<RolePermissionDocument>,
  @InjectRedis()private readonly redis:Redis) {}
      getHello(): string {
     return 'Hello Admin!';
@@ -163,15 +170,70 @@ async refreshUserCache() {
   //   const newOrg = new this.orgModel(data);
   //   return newOrg.save();
   // }
-  async createOrganization(data: CreateOrganizationDto, ownerUserId: string): Promise<Organization> {
-    const newOrg = new this.orgModel(data);
-    const savedOrg = await newOrg.save();
-    await this.userOrgMapModel.create({
-        userId: new Types.ObjectId(ownerUserId),
-        orgId: savedOrg._id,
-        role: OrgRole.OWNER
-    });
 
-    return savedOrg;
-  }
+
+  // async createOrganization(data: CreateOrganizationDto, ownerUserId: string): Promise<Organization> {
+  //   const newOrg = new this.orgModel(data);
+  //   const savedOrg = await newOrg.save();
+  //   await this.userOrgMapModel.create({
+  //       userId: new Types.ObjectId(ownerUserId),
+  //       orgId: savedOrg._id,
+  //       role: OrgRole.OWNER
+  //   });
+
+  //   return savedOrg;
+  // }
+
+    async createOrganization(data: CreateOrganizationDto, ownerUserId: string): Promise<Organization> {
+        // ২. অর্গানাইজেশন সেভ
+        const newOrg = new this.orgModel(data);
+        const savedOrg = await newOrg.save();
+
+        // ৩. ওনার ম্যাপ করা
+        await this.userOrgMapModel.create({
+            userId: new Types.ObjectId(ownerUserId),
+            orgId: savedOrg._id,
+            role: OrgRole.OWNER
+        });
+
+        // ৪. 🔥 Permission Seeding (আসল কাজ)
+        // আমরা লুপ চালিয়ে প্রতিটি রোলের জন্য ডিফল্ট পারমিশন সেভ করব
+        const permissionDocs = Object.keys(DEFAULT_PERMISSIONS).map(role => ({
+            orgId: savedOrg._id, // এই নতুন অর্গানাইজেশনের ID
+            role: role,
+            permissions: DEFAULT_PERMISSIONS[role]
+        }));
+
+        // insertMany ব্যবহার করলে লুপের চেয়ে দ্রুত কাজ হয়
+        await this.rolePermissionModel.insertMany(permissionDocs);
+
+        return savedOrg;
+    }
+
+    async updateRolePermissions(orgId: string, role: string, newPermissions: string[]) {
+    
+    // ১. ওনার যাতে নিজের পারমিশন ভুলে ডিলিট না করে ফেলে, সেই চেক (Optional)
+    if (role === OrgRole.OWNER) {
+        throw new BadRequestException('You cannot change OWNER permissions manually for safety.');
+    }
+
+    // ২. ডাটাবেস আপডেট
+    const updatedDoc = await this.rolePermissionModel.findOneAndUpdate(
+        { 
+            orgId: new Types.ObjectId(orgId), // অর্গানাইজেশন আইডি
+            role: role // কোন রোল
+        },
+        { 
+            $set: { permissions: newPermissions } // নতুন পারমিশন সেট করা
+        },
+        { new: true } // আপডেটেড ডাটা রিটার্ন করবে
+    );
+
+    if (!updatedDoc) {
+        throw new NotFoundException(`Role '${role}' not found in this organization.`);
+    }
+
+    return updatedDoc;
+}
+
 }

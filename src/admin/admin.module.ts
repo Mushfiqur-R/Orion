@@ -9,7 +9,8 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 import { JwtAuthGuard } from 'src/guards/jwtGuard';
 import { Organization, OrganizationSchema } from 'src/schemas/organization.schema';
 import { UserOrgMap, UserOrgMapSchema } from 'src/schemas/UserOrg.schema';
-// relative path, admin folder থেকে
+import { RolePermission, RolePermissionSchema } from 'src/schemas/rolepermission.schema';
+
 
 @Module({
   imports: [
@@ -18,7 +19,8 @@ import { UserOrgMap, UserOrgMapSchema } from 'src/schemas/UserOrg.schema';
     {name:Category.name,schema:CategorySchema},
     {name:Product.name,schema:ProductSchema},
     {name:Organization.name,schema:OrganizationSchema},
-    {name:UserOrgMap.name,schema:UserOrgMapSchema}
+    {name:UserOrgMap.name,schema:UserOrgMapSchema},
+    {name:RolePermission.name,schema:RolePermissionSchema}
     ],),
    
   ],

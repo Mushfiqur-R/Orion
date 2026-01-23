@@ -15,6 +15,9 @@ import { Roles } from 'src/guards/roles.decorator';
 import { CreateOrganizationDto } from 'src/Dto/Organization.dto';
 import { OrgGuard } from 'src/guards/org.guard';
 import { OrgRole } from 'src/schemas/UserOrg.schema';
+import { RequirePermissions } from 'src/guards/permission.decorator';
+import { PermissionsGuard } from 'src/guards/permission.guard';
+import { UpdatePermissionDto } from 'src/Dto/updatepermission.dto';
 
 @ApiBearerAuth()
 @ApiTags('Admin')
@@ -88,9 +91,11 @@ export class AdminController {
   
 @Throttle({default:{ttl:60000,limit:3}})
     @Post('createproduct')
-    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard,PermissionsGuard)
     @Roles(OrgRole.ADMIN, OrgRole.OWNER)
+    @RequirePermissions('create_product')
     @ApiOperation({ summary: 'create product' })
+    
     async create(@Body() data: CreateProductDto , @Req() req): Promise<Product> {
     const orgId = req['activeOrgId'];
     return this.adminService.createProduct(data, orgId);
@@ -122,4 +127,18 @@ export class AdminController {
     const userId = req.user.sub; 
     return this.adminService.createOrganization(data, userId);
     }
+
+    @Post('update-permissions')
+    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard)
+    @Roles(OrgRole.OWNER)
+    @ApiOperation({ summary: 'Update permissions for a specific role in Org' })
+    async updatePermissions(@Body() dto: UpdatePermissionDto, @Req() req) {
+    const orgId = req['activeOrgId'];
+    
+    return this.adminService.updateRolePermissions(
+        orgId, 
+        dto.role, 
+        dto.permissions
+    );
+}
 }
