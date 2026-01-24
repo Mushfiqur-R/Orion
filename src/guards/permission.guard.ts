@@ -13,25 +13,24 @@ export class PermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // ১. রাউটে কোনো পারমিশন চাওয়া হয়েছে কি না দেখি
     const requiredPermissions = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (!requiredPermissions) {
-      return true; // যদি স্পেসিফিক পারমিশন না চায়, তাহলে ছেড়ে দিলাম (RolesGuard তো আছেই)
+      return true; 
     }
 
     const request = context.switchToHttp().getRequest();
-    const orgId = request['activeOrgId']; // OrgGuard থেকে আসছে
-    const userRole = request['activeRole']; // OrgGuard থেকে আসছে
+    const orgId = request['activeOrgId']; 
+    const userRole = request['activeRole']; 
 
     if (!orgId || !userRole) {
       throw new ForbiddenException('Critical: OrgID or Role missing from request context');
     }
 
-    // ২. ডাটাবেস চেক: এই অর্গানাইজেশনে এই রোলের কী কী পারমিশন আছে?
+   
     const permissionSettings = await this.rolePermissionModel.findOne({
         orgId: new Types.ObjectId(orgId),
         role: userRole
@@ -40,8 +39,7 @@ export class PermissionsGuard implements CanActivate {
     if (!permissionSettings || !permissionSettings.permissions) {
         throw new ForbiddenException(`Access Denied: No permissions configured for '${userRole}' in this organization.`);
     }
-
-    // ৩. পারমিশন ম্যাচিং
+   
     const hasPermission = requiredPermissions.every((perm) =>
       permissionSettings.permissions.includes(perm),
     );

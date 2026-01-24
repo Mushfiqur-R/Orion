@@ -103,7 +103,8 @@ export class AdminController {
   
 @SkipThrottle()
     @Get('getallproducts')
-    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, OrgGuard, RolesGuard,PermissionsGuard)
+    @RequirePermissions('view_product')
     @ApiOperation({summary:'get all products from single or multiple orgs'})
     async getAll(@Req() req): Promise<Product[]> { 
     const orgId = req['activeOrgId']; 
